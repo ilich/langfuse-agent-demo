@@ -56,6 +56,8 @@ class OrderSearchResult(BaseModel):
     customer_id: str
     # Matches before the result limit is applied.
     total_matches: int
+    # True when total_matches is larger than the number of orders returned.
+    truncated: bool
     # Newest first, at most the requested limit.
     orders: list[OrderSummary]
 
@@ -69,6 +71,11 @@ class RefundLine(BaseModel):
 class RefundCalculation(BaseModel):
     order_id: int
     lines: list[RefundLine]
+    # Items on the order that were not included, so an omission is visible.
+    excluded_lines: list[RefundLine]
+    order_item_count: int
+    # The order's freight, whether or not it was included.
+    freight_available: Decimal
     items_total: Decimal
     # 0.00 when freight is not included.
     freight: Decimal

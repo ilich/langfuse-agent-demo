@@ -52,3 +52,14 @@ def test_other_customers_order(db_session: Session) -> None:
         calculate_refund_amount(
             db_session, CustomerRef(customer_id="ALFKI"), 10248, [11], include_freight=False
         )
+
+
+def test_reports_what_was_left_out(db_session: Session) -> None:
+    # Large orders make it easy for an agent to drop an item; the result shows what was excluded.
+    result = calculate_refund_amount(db_session, VINET, 10248, [11, 72], include_freight=False)
+
+    assert result.order_item_count == 3
+    assert [(line.product_id, line.value) for line in result.excluded_lines] == [
+        (42, Decimal("98.00"))
+    ]
+    assert result.freight_available == Decimal("16.75")

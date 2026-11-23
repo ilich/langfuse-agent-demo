@@ -3,12 +3,7 @@
 from crewai import LLM, Agent, Crew, CrewOutput, Process, Task
 
 from ..config import get_settings, get_today
-from .tools import (
-    calculate_refund_amount_tool,
-    get_order_details_tool,
-    read_refund_policy_tool,
-    search_orders_tool,
-)
+from .tools import make_order_tools
 
 # CrewAI interpolates {message} and {today}; no other braces may appear in this text.
 RESOLVE_REQUEST = """\
@@ -55,6 +50,8 @@ def make_llm() -> LLM:
 
 
 def build_crew(llm: LLM) -> Crew:
+    # Fresh tools per crew: they lock onto the first customer identified in this request.
+    tools = make_order_tools()
     # crewai's AgentMeta hides Agent fields from the pydantic mypy plugin.
     details_agent = Agent(  # type: ignore[call-arg]
         role="Order details specialist",
@@ -63,7 +60,7 @@ def build_crew(llm: LLM) -> Crew:
             "You look up orders for Acme Pte. Ltd. customer support. You only report what the "
             "order tool returns and never guess missing information."
         ),
-        tools=[get_order_details_tool],
+        tools=[tools.get_order_details],
         llm=llm,
         allow_delegation=False,
     )
@@ -75,7 +72,7 @@ def build_crew(llm: LLM) -> Crew:
             "You search order history for Acme Pte. Ltd. customer support. You pass dates to "
             "the search tool as YYYY-MM-DD and report every matching order."
         ),
-        tools=[search_orders_tool],
+        tools=[tools.search_orders],
         llm=llm,
         allow_delegation=False,
     )
@@ -91,7 +88,7 @@ def build_crew(llm: LLM) -> Crew:
             "deciding, never rely on memory, take order facts from get_order_details, and get "
             "every amount from calculate_refund_amount instead of doing arithmetic."
         ),
-        tools=[read_refund_policy_tool, get_order_details_tool, calculate_refund_amount_tool],
+        tools=[tools.read_refund_policy, tools.get_order_details, tools.calculate_refund_amount],
         llm=llm,
         allow_delegation=False,
     )

@@ -39,3 +39,14 @@ def no_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None
 def test_make_llm_requires_key() -> None:
     with pytest.raises(AssistantUnavailableError):
         make_llm()
+
+
+def test_agents_in_one_crew_share_tools() -> None:
+    # The details agent and the refund agent must share one customer lock.
+    crew = build_crew(LLM(model="gemini/gemini-2.5-flash", api_key="test-key"))
+    details_tool = crew.agents[0].tools[0]  # type: ignore[index]
+    refund_details_tool = next(
+        t for t in crew.agents[2].tools or [] if t.name == "get_order_details"
+    )
+
+    assert details_tool is refund_details_tool

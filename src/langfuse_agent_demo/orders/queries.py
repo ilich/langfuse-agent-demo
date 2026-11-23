@@ -155,6 +155,7 @@ def search_orders(
     return OrderSearchResult(
         customer_id=customer.customer_id,
         total_matches=total,
+        truncated=total > len(orders),
         orders=[
             OrderSummary(
                 order_id=order.order_id,
@@ -196,11 +197,19 @@ def calculate_refund_amount(
         )
         for product_id in wanted
     ]
+    excluded = [
+        RefundLine(product_id=item.product_id, product_name=item.product_name, value=item.value)
+        for item in details.items
+        if item.product_id not in wanted
+    ]
     items_total = sum((line.value for line in lines), Decimal("0.00"))
     freight = details.freight if include_freight else Decimal("0.00")
     return RefundCalculation(
         order_id=order_id,
         lines=lines,
+        excluded_lines=excluded,
+        order_item_count=len(details.items),
+        freight_available=details.freight,
         items_total=items_total,
         freight=freight,
         total=items_total + freight,

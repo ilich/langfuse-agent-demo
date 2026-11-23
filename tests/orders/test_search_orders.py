@@ -49,3 +49,10 @@ def test_inverted_range(db_session: Session) -> None:
 def test_unknown_customer(db_session: Session) -> None:
     with pytest.raises(CustomerNotFoundError):
         search_orders(db_session, CustomerRef(contact_name="Nobody Here"))
+
+
+def test_truncation_is_reported(db_session: Session) -> None:
+    ref = CustomerRef(customer_id="VINET")
+
+    assert search_orders(db_session, ref, limit=5).truncated is True
+    assert search_orders(db_session, ref, date(2016, 7, 1), date(2016, 7, 31)).truncated is False
