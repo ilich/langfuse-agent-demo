@@ -18,8 +18,8 @@ def get_db_path() -> Path:
 
 @lru_cache
 def get_engine() -> Engine:
-    # mode=rw: fail if the file is missing instead of silently creating an empty database.
-    return create_engine(f"sqlite:///file:{get_db_path()}?mode=rw&uri=true")
+    # mode=ro: the app never writes, and a missing file fails instead of creating an empty one.
+    return create_engine(f"sqlite:///file:{get_db_path()}?mode=ro&uri=true")
 
 
 @lru_cache

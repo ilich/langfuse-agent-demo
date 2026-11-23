@@ -1,4 +1,4 @@
-.PHONY: install run test format
+.PHONY: install run test test-llm format
 
 install:
 	uv sync
@@ -12,6 +12,10 @@ test:
 	uv run ruff check .
 	uv run mypy
 	uv run pytest
+
+# Live tests against the real LLM (needs GEMINI_API_KEY); excluded from make test.
+test-llm:
+	uv run pytest -m llm -v
 
 format:
 	uv run ruff check --fix .

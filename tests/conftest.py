@@ -1,9 +1,11 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
-from langfuse_agent_demo.db.session import get_db_path
+from langfuse_agent_demo.db.session import get_db_path, get_sessionmaker
 
 
 @pytest.fixture
@@ -16,3 +18,9 @@ def northwind_db() -> Path:
     if not path.exists():
         pytest.skip(f"Northwind database not found at {path}")
     return path
+
+
+@pytest.fixture
+def db_session(northwind_db: Path) -> Iterator[Session]:
+    with get_sessionmaker()() as session:
+        yield session

@@ -6,8 +6,9 @@ readme = "README.md"
 authors = [
     { name = "Ilya Verbitskiy", email = "ilich" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.13,<3.14"
 dependencies = [
+    "crewai[google-genai]>=1.15.44",
     "fastapi[standard]>=0.165.0",
     "pydantic-settings>=2.16.3",
     "sqlalchemy>=2.1.9",
@@ -47,3 +48,7 @@ plugins = ["pydantic.mypy"]
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+markers = ["llm: calls the real LLM; run with make test-llm"]
+addopts = "-m 'not llm'"
