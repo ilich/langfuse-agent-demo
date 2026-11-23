@@ -49,7 +49,7 @@ def make_llm() -> LLM:
     return LLM(model=settings.llm_model, api_key=settings.gemini_api_key.get_secret_value())
 
 
-def build_crew(llm: LLM) -> Crew:
+def build_crew(llm: LLM, verbose: bool = False) -> Crew:
     # Fresh tools per crew: they lock onto the first customer identified in this request.
     tools = make_order_tools()
     # crewai's AgentMeta hides Agent fields from the pydantic mypy plugin.
@@ -63,6 +63,7 @@ def build_crew(llm: LLM) -> Crew:
         tools=[tools.get_order_details],
         llm=llm,
         allow_delegation=False,
+        verbose=verbose,
     )
     # crewai's AgentMeta hides Agent fields from the pydantic mypy plugin.
     search_agent = Agent(  # type: ignore[call-arg]
@@ -75,6 +76,7 @@ def build_crew(llm: LLM) -> Crew:
         tools=[tools.search_orders],
         llm=llm,
         allow_delegation=False,
+        verbose=verbose,
     )
     # crewai's AgentMeta hides Agent fields from the pydantic mypy plugin.
     refund_agent = Agent(  # type: ignore[call-arg]
@@ -91,6 +93,7 @@ def build_crew(llm: LLM) -> Crew:
         tools=[tools.read_refund_policy, tools.get_order_details, tools.calculate_refund_amount],
         llm=llm,
         allow_delegation=False,
+        verbose=verbose,
     )
     task = Task(description=RESOLVE_REQUEST, expected_output=EXPECTED_ANSWER)
     return Crew(
@@ -98,12 +101,13 @@ def build_crew(llm: LLM) -> Crew:
         tasks=[task],
         process=Process.hierarchical,
         manager_llm=llm,
+        verbose=verbose,
     )
 
 
 def run_order_assistant(message: str) -> str:
     """Answer one customer message with a fresh crew."""
-    crew = build_crew(make_llm())
+    crew = build_crew(make_llm(), verbose=get_settings().crew_verbose)
     output = crew.kickoff(inputs={"message": message, "today": get_today().isoformat()})
     if not isinstance(output, CrewOutput):  # only returned when streaming, which is off
         raise AssistantUnavailableError("Unexpected streaming output from the crew")

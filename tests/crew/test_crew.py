@@ -50,3 +50,11 @@ def test_agents_in_one_crew_share_tools() -> None:
     )
 
     assert details_tool is refund_details_tool
+
+
+@pytest.mark.parametrize("verbose", [True, False])
+def test_verbose_reaches_crew_and_agents(verbose: bool) -> None:
+    crew = build_crew(LLM(model="gemini/gemini-2.5-flash", api_key="test-key"), verbose=verbose)
+
+    assert crew.verbose is verbose
+    assert all(agent.verbose is verbose for agent in crew.agents)

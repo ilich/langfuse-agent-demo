@@ -30,6 +30,7 @@ Settings (in `.env`):
 | `REFUND_POLICY_PATH` | Refund policy the refund agent reads (default `docs/refund-policy.md`). |
 | `LLM_MODEL` | CrewAI model name (default `gemini/gemini-2.5-flash`). |
 | `GEMINI_API_KEY` | Gemini API key; needed to run the crew, not to start the app. |
+| `CREW_VERBOSE` | `true` prints each agent step, delegation and tool call to the console (default `false`; `.env.example` sets `true`). |
 
 ## Run
 

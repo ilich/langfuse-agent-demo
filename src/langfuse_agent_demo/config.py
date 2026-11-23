@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     llm_model: str = "gemini/gemini-2.5-flash"
     # Needed only to run the crew, not at startup.
     gemini_api_key: SecretStr | None = None
+    # Print each agent step, delegation and tool call to the console while the crew runs.
+    crew_verbose: bool = False
 
 
 @lru_cache

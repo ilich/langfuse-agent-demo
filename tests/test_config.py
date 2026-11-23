@@ -6,7 +6,13 @@ import pytest
 
 from langfuse_agent_demo.config import get_settings, get_today
 
-OPTIONAL_SETTINGS = ("CURRENT_DATE", "REFUND_POLICY_PATH", "LLM_MODEL", "GEMINI_API_KEY")
+OPTIONAL_SETTINGS = (
+    "CURRENT_DATE",
+    "REFUND_POLICY_PATH",
+    "LLM_MODEL",
+    "GEMINI_API_KEY",
+    "CREW_VERBOSE",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -46,3 +52,12 @@ def test_empty_values_count_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert settings.gemini_api_key is None
     assert settings.current_date is None
+
+
+def test_crew_verbose_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert get_settings().crew_verbose is False
+
+    monkeypatch.setenv("CREW_VERBOSE", "true")
+    get_settings.cache_clear()
+
+    assert get_settings().crew_verbose is True
