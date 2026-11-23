@@ -35,3 +35,14 @@ def test_defaults() -> None:
     assert settings.llm_model == "gemini/gemini-2.5-flash"
     assert settings.refund_policy_path == Path("docs/refund-policy.md")
     assert settings.gemini_api_key is None
+
+
+def test_empty_values_count_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    # .env.example ships with "GEMINI_API_KEY=" — that must not count as a configured key.
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("CURRENT_DATE", "")
+
+    settings = get_settings()
+
+    assert settings.gemini_api_key is None
+    assert settings.current_date is None

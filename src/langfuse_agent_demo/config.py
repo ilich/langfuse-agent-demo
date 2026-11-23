@@ -13,7 +13,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    # env_ignore_empty: "GEMINI_API_KEY=" (as shipped in .env.example) means unset, not "".
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True
+    )
 
     # Path to the Northwind SQLite database; relative paths resolve against the working directory.
     northwind_db_path: Path
