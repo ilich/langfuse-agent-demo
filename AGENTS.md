@@ -9,6 +9,7 @@
 
 ## Code quality
 
-- Always run `make lint` after making changes to ensure the code is correct.
-  It checks formatting (ruff), lints (ruff), and type-checks (mypy).
-- If `make lint` reports formatting issues, run `make format`, then run `make lint` again.
+- Always run `make test` after making changes to ensure the code is correct.
+  It checks formatting (ruff), lints (ruff), and type-checks (mypy), then runs the
+  tests (pytest) only if all of those checks pass.
+- If `make test` reports formatting issues, run `make format`, then run `make test` again.
