@@ -52,3 +52,5 @@ warn_required_dynamic_aliases = true
 [tool.pytest.ini_options]
 markers = ["llm: calls the real LLM; run with make test-llm"]
 addopts = "-m 'not llm'"
+# CrewAI 1.15 reads its own deprecated fields internally; not actionable here.
+filterwarnings = ["ignore::DeprecationWarning:crewai.*"]
