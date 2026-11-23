@@ -3,6 +3,7 @@
 from crewai import LLM, Agent, Crew, CrewOutput, Process, Task
 
 from ..config import get_settings, get_today
+from ..observability import trace_order_request
 from .tools import make_order_tools
 
 # CrewAI interpolates {message} and {today}; no other braces may appear in this text.
@@ -108,7 +109,10 @@ def build_crew(llm: LLM, verbose: bool = False) -> Crew:
 def run_order_assistant(message: str) -> str:
     """Answer one customer message with a fresh crew."""
     crew = build_crew(make_llm(), verbose=get_settings().crew_verbose)
-    output = crew.kickoff(inputs={"message": message, "today": get_today().isoformat()})
-    if not isinstance(output, CrewOutput):  # only returned when streaming, which is off
-        raise AssistantUnavailableError("Unexpected streaming output from the crew")
+    # One Langfuse trace per request; the instrumented crew's spans nest under it.
+    with trace_order_request(message) as record_answer:
+        output = crew.kickoff(inputs={"message": message, "today": get_today().isoformat()})
+        if not isinstance(output, CrewOutput):  # only returned when streaming, which is off
+            raise AssistantUnavailableError("Unexpected streaming output from the crew")
+        record_answer(output.raw)
     return output.raw

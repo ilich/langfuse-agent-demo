@@ -30,6 +30,8 @@ Settings (in `.env`):
 | `REFUND_POLICY_PATH` | Refund policy the refund agent reads (default `docs/refund-policy.md`). |
 | `LLM_MODEL` | CrewAI model name (default `gemini/gemini-2.5-flash`). |
 | `GEMINI_API_KEY` | Gemini API key; needed to run the crew, not to start the app. |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Langfuse project keys; tracing is on only when both are set. |
+| `LANGFUSE_BASE_URL` | Langfuse server (default `https://cloud.langfuse.com`, EU region). |
 | `CREW_VERBOSE` | `true` prints each agent step, delegation and tool call to the console (default `false`; `.env.example` sets `true`). |
 
 ## Run
@@ -67,6 +69,17 @@ Discontinued products are final sale and are excluded.
 
 The response is `{"answer": "..."}`, or `503 {"error": "..."}` if the crew can't run.
 `GET /health` checks that the database is accessible.
+
+## Tracing with Langfuse
+
+With `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` set, every `/orders/assist` request is
+traced to [Langfuse](https://langfuse.com), following the
+[CrewAI integration guide](https://langfuse.com/integrations/frameworks/crewai). At startup the
+app creates the Langfuse client, checks the credentials (a failure is logged, not fatal) and
+instruments CrewAI with OpenInference. Each request becomes one `order-assistant` trace, tagged
+`order-assistant`, with the customer's message as input and the crew's answer as output. Under
+it are spans for the crew run, the task, each agent and every tool call. Buffered spans are
+flushed when the app shuts down. `make test-llm` traces its runs too.
 
 ## Refund policy
 

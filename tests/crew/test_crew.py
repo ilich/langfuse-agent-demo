@@ -58,3 +58,32 @@ def test_verbose_reaches_crew_and_agents(verbose: bool) -> None:
 
     assert crew.verbose is verbose
     assert all(agent.verbose is verbose for agent in crew.agents)
+
+
+def test_run_is_wrapped_in_a_trace(monkeypatch: pytest.MonkeyPatch) -> None:
+    from collections.abc import Callable
+    from contextlib import contextmanager
+
+    from crewai import CrewOutput
+
+    from langfuse_agent_demo.crew import crew as crew_module
+
+    recorded: dict[str, str] = {}
+
+    @contextmanager
+    def fake_trace(message: str) -> Iterator[Callable[[str], None]]:
+        recorded["message"] = message
+        yield lambda answer: recorded.__setitem__("answer", answer)
+
+    class FakeCrew:
+        def kickoff(self, inputs: dict[str, str]) -> CrewOutput:
+            return CrewOutput(raw=f"answer to {inputs['message']}")
+
+    monkeypatch.setattr(crew_module, "make_llm", lambda: None)
+    monkeypatch.setattr(crew_module, "build_crew", lambda llm, verbose=False: FakeCrew())
+    monkeypatch.setattr(crew_module, "trace_order_request", fake_trace)
+
+    answer = crew_module.run_order_assistant("Refund order 14288")
+
+    assert answer == "answer to Refund order 14288"
+    assert recorded == {"message": "Refund order 14288", "answer": answer}

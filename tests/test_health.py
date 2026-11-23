@@ -48,3 +48,20 @@ def test_health_database_without_northwind_tables(
 
     assert response.status_code == 503
     assert response.json() == {"success": False, "error": "Database is not accessible"}
+
+
+def test_app_lifespan_sets_up_and_flushes_tracing(monkeypatch: pytest.MonkeyPatch) -> None:
+    from langfuse_agent_demo import main
+
+    calls: list[str] = []
+
+    def fake_setup() -> bool:
+        calls.append("setup")
+        return False
+
+    monkeypatch.setattr(main, "setup_tracing", fake_setup)
+    monkeypatch.setattr(main, "shutdown_tracing", lambda: calls.append("shutdown"))
+
+    with TestClient(app):
+        assert calls == ["setup"]
+    assert calls == ["setup", "shutdown"]

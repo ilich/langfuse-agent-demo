@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
     # Print each agent step, delegation and tool call to the console while the crew runs.
     crew_verbose: bool = False
+    # Langfuse tracing; enabled only when both keys are set.
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: SecretStr | None = None
+    langfuse_base_url: str = "https://cloud.langfuse.com"
 
 
 @lru_cache

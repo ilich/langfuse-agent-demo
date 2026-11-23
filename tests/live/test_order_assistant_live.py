@@ -9,6 +9,7 @@ from collections.abc import Iterator
 import pytest
 from sqlalchemy.orm import Session
 
+from langfuse_agent_demo import observability
 from langfuse_agent_demo.config import get_settings, get_today
 from langfuse_agent_demo.crew.crew import run_order_assistant
 from langfuse_agent_demo.orders.customers import CustomerRef
@@ -23,7 +24,9 @@ def live_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     get_settings.cache_clear()
     if get_settings().gemini_api_key is None:
         pytest.skip("GEMINI_API_KEY is not configured")
+    observability.setup_tracing()  # traces to Langfuse when its keys are set
     yield
+    observability.shutdown_tracing()
     get_settings.cache_clear()
 
 
