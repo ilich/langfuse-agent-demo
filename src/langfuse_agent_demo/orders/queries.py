@@ -8,7 +8,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..db import Order, OrderDetail, Product
 from .customers import CustomerRef, resolve_customer
-from .schemas import OrderDetails, OrderItem, OrderSearchResult, OrderSummary
+from .schemas import (
+    OrderDetails,
+    OrderItem,
+    OrderSearchResult,
+    OrderSummary,
+    RefundCalculation,
+    RefundLine,
+)
 
 CENT = Decimal("0.01")
 
@@ -19,6 +26,15 @@ class OrderNotFoundError(Exception):
     def __init__(self, order_id: int) -> None:
         super().__init__(f"Order {order_id} not found")
         self.order_id = order_id
+
+
+class ProductNotOnOrderError(Exception):
+    """Some requested products are not on the order."""
+
+    def __init__(self, order_id: int, product_ids: list[int]) -> None:
+        super().__init__(f"Products {product_ids} are not on order {order_id}")
+        self.order_id = order_id
+        self.product_ids = product_ids
 
 
 class InvalidDateRangeError(ValueError):
@@ -153,4 +169,39 @@ def search_orders(
             )
             for order in orders
         ],
+    )
+
+
+def calculate_refund_amount(
+    session: Session,
+    ref: CustomerRef,
+    order_id: int,
+    refundable_product_ids: list[int],
+    include_freight: bool,
+) -> RefundCalculation:
+    """Add up the chosen items (and freight). Which ones are refundable is decided elsewhere."""
+    # today only affects day counts, which are not used here.
+    details = get_order_details(session, ref, order_id, date.today())
+    by_product = {item.product_id: item for item in details.items}
+    wanted = list(dict.fromkeys(refundable_product_ids))
+    missing = [product_id for product_id in wanted if product_id not in by_product]
+    if missing:
+        raise ProductNotOnOrderError(order_id, missing)
+
+    lines = [
+        RefundLine(
+            product_id=product_id,
+            product_name=by_product[product_id].product_name,
+            value=by_product[product_id].value,
+        )
+        for product_id in wanted
+    ]
+    items_total = sum((line.value for line in lines), Decimal("0.00"))
+    freight = details.freight if include_freight else Decimal("0.00")
+    return RefundCalculation(
+        order_id=order_id,
+        lines=lines,
+        items_total=items_total,
+        freight=freight,
+        total=items_total + freight,
     )

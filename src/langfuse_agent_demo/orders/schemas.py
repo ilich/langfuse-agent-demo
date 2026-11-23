@@ -58,3 +58,18 @@ class OrderSearchResult(BaseModel):
     total_matches: int
     # Newest first, at most the requested limit.
     orders: list[OrderSummary]
+
+
+class RefundLine(BaseModel):
+    product_id: int
+    product_name: str
+    value: Decimal
+
+
+class RefundCalculation(BaseModel):
+    order_id: int
+    lines: list[RefundLine]
+    items_total: Decimal
+    # 0.00 when freight is not included.
+    freight: Decimal
+    total: Decimal
