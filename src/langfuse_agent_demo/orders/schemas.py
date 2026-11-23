@@ -42,3 +42,19 @@ class OrderDetails(BaseModel):
     items_total: Decimal
     order_total: Decimal
     items: list[OrderItem]
+
+
+class OrderSummary(BaseModel):
+    order_id: int
+    order_date: date | None
+    shipped_date: date | None
+    item_count: int
+    order_total: Decimal
+
+
+class OrderSearchResult(BaseModel):
+    customer_id: str
+    # Matches before the result limit is applied.
+    total_matches: int
+    # Newest first, at most the requested limit.
+    orders: list[OrderSummary]

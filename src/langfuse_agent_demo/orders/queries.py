@@ -3,12 +3,12 @@
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import Order, OrderDetail, Product
 from .customers import CustomerRef, resolve_customer
-from .schemas import OrderDetails, OrderItem
+from .schemas import OrderDetails, OrderItem, OrderSearchResult, OrderSummary
 
 CENT = Decimal("0.01")
 
@@ -19,6 +19,10 @@ class OrderNotFoundError(Exception):
     def __init__(self, order_id: int) -> None:
         super().__init__(f"Order {order_id} not found")
         self.order_id = order_id
+
+
+class InvalidDateRangeError(ValueError):
+    """``date_from`` is after ``date_to``."""
 
 
 def item_value(unit_price: Decimal, quantity: int, discount: float) -> Decimal:
@@ -100,4 +104,53 @@ def get_order_details(
         items_total=items_total,
         order_total=items_total + freight,
         items=items,
+    )
+
+
+def search_orders(
+    session: Session,
+    ref: CustomerRef,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    limit: int = 50,
+) -> OrderSearchResult:
+    """The customer's orders placed between the dates (inclusive, date part only), newest first."""
+    if date_from and date_to and date_from > date_to:
+        raise InvalidDateRangeError("date_from must be on or before date_to")
+    customer = resolve_customer(session, ref)
+
+    # Compare on the date part: stored values may or may not include a time.
+    order_day = func.date(Order.order_date)
+    conditions: list[ColumnElement[bool]] = [Order.customer_id == customer.customer_id]
+    if date_from:
+        conditions.append(order_day >= date_from.isoformat())
+    if date_to:
+        conditions.append(order_day <= date_to.isoformat())
+
+    total = session.scalar(select(func.count()).select_from(Order).where(*conditions)) or 0
+    orders = session.scalars(
+        select(Order)
+        .where(*conditions)
+        .order_by(Order.order_date.desc(), Order.order_id.desc())
+        .limit(limit)
+        .options(selectinload(Order.order_details))
+    ).all()
+
+    return OrderSearchResult(
+        customer_id=customer.customer_id,
+        total_matches=total,
+        orders=[
+            OrderSummary(
+                order_id=order.order_id,
+                order_date=_day(order.order_date),
+                shipped_date=_day(order.shipped_date),
+                item_count=len(order.order_details),
+                order_total=sum(
+                    (item_value(d.unit_price, d.quantity, d.discount) for d in order.order_details),
+                    Decimal("0.00"),
+                )
+                + _money(order.freight),
+            )
+            for order in orders
+        ],
     )
