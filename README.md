@@ -44,6 +44,27 @@ curl -s localhost:8000/orders/assist \
   -d '{"message": "I am Karin Josephs from Toms Spezialitäten. Can I get a refund for order 12544?"}'
 ```
 
+### Test prompt
+
+A refund request for a late shipment:
+
+```json
+{
+  "message": "I am Carine Schmitt from France Restauration. I want to refund order 14288. It arrived too late"
+}
+```
+
+```bash
+curl -s localhost:8000/orders/assist \
+  -H 'Content-Type: application/json' \
+  -d '{"message": "I am Carine Schmitt from France Restauration. I want to refund order 14288. It arrived too late"}'
+```
+
+With `CURRENT_DATE=2023-11-20`, order 14288 (customer `FRANR`) was required by 2023-11-16 and
+shipped on 2023-11-19: 3 days late and 1 day ago. That puts it inside the policy's 30-day window
+for late orders, so the crew should approve a refund of the refundable items plus freight.
+Discontinued products are final sale and are excluded.
+
 The response is `{"answer": "..."}`, or `503 {"error": "..."}` if the crew can't run.
 `GET /health` checks that the database is accessible.
 
