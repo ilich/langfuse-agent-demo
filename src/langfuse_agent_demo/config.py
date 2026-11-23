@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     langfuse_public_key: str | None = None
     langfuse_secret_key: SecretStr | None = None
     langfuse_base_url: str = "https://cloud.langfuse.com"
+    # Langfuse AI Gateway; when host and key are set, all model calls go through it.
+    langfuse_gateway_host: str | None = None
+    langfuse_gateway_key: SecretStr | None = None
+    # Gateway model ID: "<connection>:<model>" as listed by GET <host>/openai/v1/models.
+    langfuse_gateway_model: str = "google-ai-studio:gemini-2.5-flash"
 
 
 @lru_cache

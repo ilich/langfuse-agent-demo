@@ -1,6 +1,8 @@
+import asyncio
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import pytest
 from openinference.instrumentation.crewai import CrewAIInstrumentor
 from opentelemetry import trace
@@ -72,3 +74,36 @@ def test_request_span_records_message_and_answer() -> None:
     attributes = dict(span.attributes or {})
     assert "Refund order 14288" in str(attributes.get("langfuse.observation.input"))
     assert "Eligible" in str(attributes.get("langfuse.observation.output"))
+
+
+def test_interceptor_adds_traceparent_of_current_span() -> None:
+    tracer = TracerProvider().get_tracer("test")
+    interceptor = observability.TraceContextInterceptor()
+
+    with tracer.start_as_current_span("agent") as span:
+        request = interceptor.on_outbound(httpx.Request("POST", "https://gateway.example/x"))
+
+    trace_id = format(span.get_span_context().trace_id, "032x")
+    assert trace_id in request.headers["traceparent"]
+
+
+def test_interceptor_leaves_request_alone_outside_a_span() -> None:
+    request = observability.TraceContextInterceptor().on_outbound(
+        httpx.Request("POST", "https://gateway.example/x")
+    )
+
+    assert "traceparent" not in request.headers
+
+
+def test_interceptor_async_variants() -> None:
+    tracer = TracerProvider().get_tracer("test")
+    interceptor = observability.TraceContextInterceptor()
+    response = httpx.Response(200)
+
+    with tracer.start_as_current_span("agent"):
+        request = asyncio.run(
+            interceptor.aon_outbound(httpx.Request("POST", "https://gateway.example/x"))
+        )
+
+    assert "traceparent" in request.headers
+    assert asyncio.run(interceptor.aon_inbound(response)) is response

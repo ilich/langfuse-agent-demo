@@ -10,8 +10,11 @@ import logging
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
+import httpx
+from crewai.llms.hooks.base import BaseInterceptor
 from langfuse import Langfuse, get_client, propagate_attributes
 from openinference.instrumentation.crewai import CrewAIInstrumentor
+from opentelemetry.propagate import inject
 
 from .config import get_settings
 
@@ -80,3 +83,26 @@ def trace_order_request(message: str) -> Iterator[Callable[[str], None]]:
             span.update(output={"answer": answer})
 
         yield record_answer
+
+
+class TraceContextInterceptor(BaseInterceptor[httpx.Request, httpx.Response]):
+    """Adds the current span's W3C ``traceparent`` to outgoing model requests.
+
+    The Langfuse AI Gateway records each model call as a generation; with ``traceparent`` it
+    nests that generation under the calling CrewAI span instead of starting a separate trace.
+    """
+
+    def on_outbound(self, message: httpx.Request) -> httpx.Request:
+        headers: dict[str, str] = {}
+        inject(headers)  # no-op outside a span
+        message.headers.update(headers)
+        return message
+
+    def on_inbound(self, message: httpx.Response) -> httpx.Response:
+        return message
+
+    async def aon_outbound(self, message: httpx.Request) -> httpx.Request:
+        return self.on_outbound(message)
+
+    async def aon_inbound(self, message: httpx.Response) -> httpx.Response:
+        return message

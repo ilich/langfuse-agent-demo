@@ -32,6 +32,8 @@ Settings (in `.env`):
 | `GEMINI_API_KEY` | Gemini API key; needed to run the crew, not to start the app. |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Langfuse project keys; tracing is on only when both are set. |
 | `LANGFUSE_BASE_URL` | Langfuse server (default `https://cloud.langfuse.com`, EU region). |
+| `LANGFUSE_GATEWAY_HOST`, `LANGFUSE_GATEWAY_KEY` | Langfuse AI Gateway; when both are set, all model calls go through it and `GEMINI_API_KEY` / `LLM_MODEL` are not used. |
+| `LANGFUSE_GATEWAY_MODEL` | Gateway model ID `<connection>:<model>` (default `google-ai-studio:gemini-2.5-flash`). |
 | `CREW_VERBOSE` | `true` prints each agent step, delegation and tool call to the console (default `false`; `.env.example` sets `true`). |
 
 ## Run
@@ -80,6 +82,21 @@ instruments CrewAI with OpenInference. Each request becomes one `order-assistant
 `order-assistant`, with the customer's message as input and the crew's answer as output. Under
 it are spans for the crew run, the task, each agent and every tool call. Buffered spans are
 flushed when the app shuts down. `make test-llm` traces its runs too.
+
+### Langfuse AI Gateway
+
+With `LANGFUSE_GATEWAY_HOST` and `LANGFUSE_GATEWAY_KEY` set, the crew sends every model call
+through the [Langfuse AI Gateway](https://langfuse.com/integrations/model-providers/openai-gateway)
+instead of calling Gemini directly. CrewAI uses its OpenAI provider with base URL
+`$LANGFUSE_GATEWAY_HOST/openai/v1` and the gateway key; the Gemini API key lives in the gateway's
+connection. The gateway records each call (model, tokens, cost, and prompts if its ingestion mode
+is `FULL`). Each request carries the current span's `traceparent` header, so when Langfuse
+tracing is also on, these model calls appear inside the same `order-assistant` trace as the
+crew, agent and tool spans. To list the model IDs your key can use:
+
+```bash
+curl -s "$LANGFUSE_GATEWAY_HOST/openai/v1/models" -H "Authorization: Bearer $LANGFUSE_GATEWAY_KEY"
+```
 
 ## Refund policy
 

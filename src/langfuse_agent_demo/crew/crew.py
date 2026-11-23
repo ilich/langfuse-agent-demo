@@ -3,7 +3,7 @@
 from crewai import LLM, Agent, Crew, CrewOutput, Process, Task
 
 from ..config import get_settings, get_today
-from ..observability import trace_order_request
+from ..observability import TraceContextInterceptor, trace_order_request
 from .tools import make_order_tools
 
 # CrewAI interpolates {message} and {today}; no other braces may appear in this text.
@@ -44,6 +44,15 @@ class AssistantUnavailableError(RuntimeError):
 
 def make_llm() -> LLM:
     settings = get_settings()
+    if settings.langfuse_gateway_host and settings.langfuse_gateway_key:
+        # Langfuse AI Gateway: OpenAI-compatible endpoint that holds the provider key and
+        # records every call; traceparent nests those calls under the CrewAI spans.
+        return LLM(
+            model=f"openai/{settings.langfuse_gateway_model}",
+            base_url=f"{settings.langfuse_gateway_host.rstrip('/')}/openai/v1",
+            api_key=settings.langfuse_gateway_key.get_secret_value(),
+            interceptor=TraceContextInterceptor(),
+        )
     if settings.gemini_api_key is None:
         raise AssistantUnavailableError("GEMINI_API_KEY is not configured")
     # Passed explicitly: pydantic-settings does not export .env values to os.environ.

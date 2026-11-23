@@ -3,9 +3,11 @@ from pathlib import Path
 
 import pytest
 from crewai import LLM, Process
+from crewai.llms.providers.openai.completion import OpenAICompletion
 
 from langfuse_agent_demo.config import get_settings
 from langfuse_agent_demo.crew.crew import AssistantUnavailableError, build_crew, make_llm
+from langfuse_agent_demo.observability import TraceContextInterceptor
 
 
 def test_crew_structure() -> None:
@@ -29,10 +31,56 @@ def test_crew_structure() -> None:
 def no_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.chdir(tmp_path)  # ignore the developer's .env
     monkeypatch.setenv("NORTHWIND_DB_PATH", str(tmp_path / "northwind.db"))
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    for name in (
+        "GEMINI_API_KEY",
+        "LLM_MODEL",
+        "LANGFUSE_GATEWAY_HOST",
+        "LANGFUSE_GATEWAY_KEY",
+        "LANGFUSE_GATEWAY_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+GATEWAY_HOST = "https://gateway.us.cloud.langfuse.com"
+
+
+@pytest.mark.usefixtures("no_api_key")
+def test_make_llm_uses_gateway_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LANGFUSE_GATEWAY_HOST", GATEWAY_HOST + "/")
+    monkeypatch.setenv("LANGFUSE_GATEWAY_KEY", "gw-key")
+    get_settings.cache_clear()
+
+    llm = make_llm()  # no GEMINI_API_KEY needed: the gateway holds the provider key
+
+    assert isinstance(llm, OpenAICompletion)
+    assert llm.model == "google-ai-studio:gemini-2.5-flash"
+    assert llm.base_url == GATEWAY_HOST + "/openai/v1"
+    assert llm.api_key == "gw-key"
+    assert isinstance(llm.interceptor, TraceContextInterceptor)
+
+
+@pytest.mark.usefixtures("no_api_key")
+def test_gateway_model_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LANGFUSE_GATEWAY_HOST", GATEWAY_HOST)
+    monkeypatch.setenv("LANGFUSE_GATEWAY_KEY", "gw-key")
+    monkeypatch.setenv("LANGFUSE_GATEWAY_MODEL", "google-ai-studio:gemini-2.5-pro")
+    get_settings.cache_clear()
+
+    assert make_llm().model == "google-ai-studio:gemini-2.5-pro"
+
+
+@pytest.mark.usefixtures("no_api_key")
+def test_make_llm_calls_gemini_directly_without_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+    get_settings.cache_clear()
+
+    llm = make_llm()
+
+    assert not isinstance(llm, OpenAICompletion)
+    assert llm.model == "gemini-2.5-flash"
 
 
 @pytest.mark.usefixtures("no_api_key")
