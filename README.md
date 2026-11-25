@@ -1,4 +1,4 @@
-# langfuse-agent-demo
+# Langfuse CrewAI Agent Demo
 
 A small, complete AI agent app for learning how to build, observe and operate agents with
 [Langfuse](https://langfuse.com). A [CrewAI](https://www.crewai.com) crew answers customer
