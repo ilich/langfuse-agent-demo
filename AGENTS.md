@@ -12,7 +12,11 @@
 
 ## Git workflow
 
-- Do not create pull requests. Work directly on the `main` branch.
+- Feature branches and pull requests are allowed. Name branches `<type>/<short-description>`
+  with a Conventional Commits type, e.g. `feat/prompt-management`. Small changes may still be
+  committed directly to `main`.
+- Open pull requests against `main` with `gh pr create`. The PR title follows the commit message
+  convention below.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages:
   `<type>(<optional scope>): <description>`, e.g. `feat(health): add /health endpoint`.
   Common types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `build`, `ci`, `chore`.
