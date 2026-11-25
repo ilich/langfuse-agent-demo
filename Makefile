@@ -1,22 +1,10 @@
-.PHONY: install run test test-llm format
+# Monorepo entry point: each target runs in every app under apps/.
+APPS := server
 
-install:
-	uv sync
+.PHONY: install run test format
 
-run:
-	uv run fastapi dev
+install test format:
+	@for app in $(APPS); do $(MAKE) -C apps/$$app $@ || exit 1; done
 
-# Static checks run first; make stops on the first failure, so pytest only runs if they pass.
-test:
-	uv run ruff format --check .
-	uv run ruff check .
-	uv run mypy
-	uv run pytest
-
-# Live tests against the real LLM (needs GEMINI_API_KEY); excluded from make test.
-test-llm:
-	uv run pytest -m llm -v
-
-format:
-	uv run ruff check --fix .
-	uv run ruff format .
+server:
+	$(MAKE) -C apps/server run

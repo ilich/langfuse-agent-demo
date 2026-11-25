@@ -11,7 +11,7 @@ from langfuse_agent_demo.observability import TraceContextInterceptor
 
 
 def test_crew_structure() -> None:
-    crew = build_crew(LLM(model="gemini/gemini-2.5-flash", api_key="test-key"))
+    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"))
 
     assert crew.process == Process.hierarchical
     assert crew.manager_llm is not None
@@ -32,7 +32,7 @@ def no_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None
     monkeypatch.chdir(tmp_path)  # ignore the developer's .env
     monkeypatch.setenv("NORTHWIND_DB_PATH", str(tmp_path / "northwind.db"))
     for name in (
-        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
         "LLM_MODEL",
         "LANGFUSE_GATEWAY_HOST",
         "LANGFUSE_GATEWAY_KEY",
@@ -53,7 +53,7 @@ def test_make_llm_uses_gateway_when_configured(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setenv("LANGFUSE_GATEWAY_KEY", "gw-key")
     get_settings.cache_clear()
 
-    llm = make_llm()  # no GEMINI_API_KEY needed: the gateway holds the provider key
+    llm = make_llm()  # no OPENAI_API_KEY needed: the gateway holds the provider key
 
     assert isinstance(llm, OpenAICompletion)
     assert llm.model == "google-ai-studio:gemini-2.5-flash"
@@ -73,14 +73,17 @@ def test_gateway_model_setting(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.usefixtures("no_api_key")
-def test_make_llm_calls_gemini_directly_without_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GEMINI_API_KEY", "gemini-key")
+def test_make_llm_calls_openai_directly_without_gateway(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-key")
     get_settings.cache_clear()
 
     llm = make_llm()
 
-    assert not isinstance(llm, OpenAICompletion)
-    assert llm.model == "gemini-2.5-flash"
+    assert isinstance(llm, OpenAICompletion)
+    assert llm.model == "gpt-4o-mini"
+    assert llm.api_key == "openai-key"
+    assert llm.base_url is None
+    assert llm.interceptor is None
 
 
 @pytest.mark.usefixtures("no_api_key")
@@ -91,7 +94,7 @@ def test_make_llm_requires_key() -> None:
 
 def test_agents_in_one_crew_share_tools() -> None:
     # The details agent and the refund agent must share one customer lock.
-    crew = build_crew(LLM(model="gemini/gemini-2.5-flash", api_key="test-key"))
+    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"))
     details_tool = crew.agents[0].tools[0]  # type: ignore[index]
     refund_details_tool = next(
         t for t in crew.agents[2].tools or [] if t.name == "get_order_details"
@@ -102,7 +105,7 @@ def test_agents_in_one_crew_share_tools() -> None:
 
 @pytest.mark.parametrize("verbose", [True, False])
 def test_verbose_reaches_crew_and_agents(verbose: bool) -> None:
-    crew = build_crew(LLM(model="gemini/gemini-2.5-flash", api_key="test-key"), verbose=verbose)
+    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"), verbose=verbose)
 
     assert crew.verbose is verbose
     assert all(agent.verbose is verbose for agent in crew.agents)

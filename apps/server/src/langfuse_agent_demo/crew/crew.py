@@ -53,10 +53,10 @@ def make_llm() -> LLM:
             api_key=settings.langfuse_gateway_key.get_secret_value(),
             interceptor=TraceContextInterceptor(),
         )
-    if settings.gemini_api_key is None:
-        raise AssistantUnavailableError("GEMINI_API_KEY is not configured")
+    if settings.openai_api_key is None:
+        raise AssistantUnavailableError("OPENAI_API_KEY is not configured")
     # Passed explicitly: pydantic-settings does not export .env values to os.environ.
-    return LLM(model=settings.llm_model, api_key=settings.gemini_api_key.get_secret_value())
+    return LLM(model=settings.llm_model, api_key=settings.openai_api_key.get_secret_value())
 
 
 def build_crew(llm: LLM, verbose: bool = False) -> Crew:

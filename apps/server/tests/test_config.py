@@ -10,7 +10,7 @@ OPTIONAL_SETTINGS = (
     "CURRENT_DATE",
     "REFUND_POLICY_PATH",
     "LLM_MODEL",
-    "GEMINI_API_KEY",
+    "OPENAI_API_KEY",
     "CREW_VERBOSE",
 )
 
@@ -38,19 +38,19 @@ def test_today_defaults_to_real_date() -> None:
 
 def test_defaults() -> None:
     settings = get_settings()
-    assert settings.llm_model == "gemini/gemini-2.5-flash"
+    assert settings.llm_model == "openai/gpt-4o-mini"
     assert settings.refund_policy_path == Path("docs/refund-policy.md")
-    assert settings.gemini_api_key is None
+    assert settings.openai_api_key is None
 
 
 def test_empty_values_count_as_unset(monkeypatch: pytest.MonkeyPatch) -> None:
-    # .env.example ships with "GEMINI_API_KEY=" — that must not count as a configured key.
-    monkeypatch.setenv("GEMINI_API_KEY", "")
+    # .env.example ships with "OPENAI_API_KEY=" — that must not count as a configured key.
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("CURRENT_DATE", "")
 
     settings = get_settings()
 
-    assert settings.gemini_api_key is None
+    assert settings.openai_api_key is None
     assert settings.current_date is None
 
 

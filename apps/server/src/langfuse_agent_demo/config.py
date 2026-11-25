@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # env_ignore_empty: "GEMINI_API_KEY=" (as shipped in .env.example) means unset, not "".
+    # env_ignore_empty: "OPENAI_API_KEY=" (as shipped in .env.example) means unset, not "".
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore", env_ignore_empty=True
     )
@@ -25,9 +25,9 @@ class Settings(BaseSettings):
     # The crew's "today"; the real date when unset.
     current_date: date | None = None
     # CrewAI model name for all agents.
-    llm_model: str = "gemini/gemini-2.5-flash"
+    llm_model: str = "openai/gpt-4o-mini"
     # Needed only to run the crew, not at startup.
-    gemini_api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
     # Print each agent step, delegation and tool call to the console while the crew runs.
     crew_verbose: bool = False
     # Langfuse tracing; enabled only when both keys are set.
