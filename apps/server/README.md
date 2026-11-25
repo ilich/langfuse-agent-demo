@@ -70,7 +70,9 @@ for late orders, so the crew should approve a refund of the refundable items plu
 Discontinued products are final sale and are excluded.
 
 The response is `{"answer": "..."}`, or `503 {"error": "..."}` if the crew can't run.
-`GET /health` checks that the database is accessible.
+`GET /health` checks that the database is accessible. Successful health checks are left out
+of the console's access log, so the client's polling doesn't flood it; failed ones are still
+logged.
 
 ## Tracing with Langfuse
 

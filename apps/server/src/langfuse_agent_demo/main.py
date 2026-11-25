@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .access_log import quiet_health_checks
 from .config import get_settings
 from .observability import setup_tracing, shutdown_tracing
 from .routers import health, orders
@@ -16,6 +17,9 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     shutdown_tracing()
 
+
+# The client polls /health; keep those requests out of the console (failures still show).
+quiet_health_checks()
 
 app = FastAPI(title="langfuse-agent-demo", lifespan=lifespan)
 
