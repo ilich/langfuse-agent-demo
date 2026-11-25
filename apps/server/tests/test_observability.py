@@ -79,6 +79,27 @@ def test_request_span_records_message_and_answer() -> None:
     assert "order-assistant/resolve-request" in str(attributes)
 
 
+@pytest.mark.usefixtures("langfuse_keys")
+def test_request_span_is_a_trace_root_inside_another_span() -> None:
+    # FastAPI wraps each request in its own spans, which Langfuse's default filter drops; a
+    # child of them would show up in Langfuse as an orphan, not as the trace root.
+    observability.setup_tracing()
+    provider = trace.get_tracer_provider()
+    assert isinstance(provider, TracerProvider)
+    exporter = InMemorySpanExporter()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+    with provider.get_tracer("fastapi").start_as_current_span("fastapi.endpoint") as endpoint:
+        with observability.trace_order_request("hello", {}):
+            pass
+        # The request's own context is restored afterwards.
+        assert trace.get_current_span() is endpoint
+
+    span = next(s for s in exporter.get_finished_spans() if s.name == "order-assistant")
+    assert span.parent is None
+    assert span.context.trace_id != endpoint.get_span_context().trace_id
+
+
 def test_interceptor_adds_traceparent_of_current_span() -> None:
     tracer = TracerProvider().get_tracer("test")
     interceptor = observability.TraceContextInterceptor()

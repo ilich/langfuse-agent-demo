@@ -14,6 +14,7 @@ import httpx
 from crewai.llms.hooks.base import BaseInterceptor
 from langfuse import Langfuse, get_client, propagate_attributes
 from openinference.instrumentation.crewai import CrewAIInstrumentor
+from opentelemetry import context as otel_context
 from opentelemetry.propagate import inject
 
 from .config import get_settings
@@ -66,6 +67,21 @@ def shutdown_tracing() -> None:
 
 
 @contextmanager
+def _detached_from_current_span() -> Iterator[None]:
+    """Run the block in an empty OpenTelemetry context, so a span started in it is a trace root.
+
+    FastAPI creates its own spans around each request (``POST``, ``fastapi.endpoint``). Langfuse's
+    default span filter drops them as non-LLM spans, so a span nested under them would reach
+    Langfuse with a missing parent and show up as an orphan instead of as the trace root.
+    """
+    token = otel_context.attach(otel_context.Context())
+    try:
+        yield
+    finally:
+        otel_context.detach(token)
+
+
+@contextmanager
 def trace_order_request(
     message: str, prompt_versions: Mapping[str, int]
 ) -> Iterator[Callable[[str], None]]:
@@ -78,6 +94,7 @@ def trace_order_request(
         return
 
     with (
+        _detached_from_current_span(),
         get_client().start_as_current_observation(
             as_type="span",
             name="order-assistant",
