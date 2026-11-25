@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 import pytest
@@ -12,11 +12,12 @@ from langfuse_agent_demo.crew.crew import (
     gateway_model_id,
     make_llm,
 )
+from langfuse_agent_demo.crew.prompts import CrewPrompts, PromptsUnavailableError
 from langfuse_agent_demo.observability import TraceContextInterceptor
 
 
 def test_crew_structure() -> None:
-    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"))
+    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"), CrewPrompts.from_file())
 
     assert crew.process == Process.hierarchical
     assert crew.manager_llm is not None
@@ -27,6 +28,7 @@ def test_crew_structure() -> None:
         {"read_refund_policy", "get_order_details", "calculate_refund_amount"},
     ]
     assert all(agent.allow_delegation is False for agent in crew.agents)
+    assert crew.agents[2].role == CrewPrompts.from_file()["order-assistant/refund-agent/role"]
     assert len(crew.tasks) == 1
     assert "{message}" in crew.tasks[0].description
     assert "{today}" in crew.tasks[0].description
@@ -110,7 +112,7 @@ def test_make_llm_requires_key() -> None:
 
 def test_agents_in_one_crew_share_tools() -> None:
     # The details agent and the refund agent must share one customer lock.
-    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"))
+    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"), CrewPrompts.from_file())
     details_tool = crew.agents[0].tools[0]  # type: ignore[index]
     refund_details_tool = next(
         t for t in crew.agents[2].tools or [] if t.name == "get_order_details"
@@ -121,7 +123,11 @@ def test_agents_in_one_crew_share_tools() -> None:
 
 @pytest.mark.parametrize("verbose", [True, False])
 def test_verbose_reaches_crew_and_agents(verbose: bool) -> None:
-    crew = build_crew(LLM(model="openai/gpt-4o-mini", api_key="test-key"), verbose=verbose)
+    crew = build_crew(
+        LLM(model="openai/gpt-4o-mini", api_key="test-key"),
+        CrewPrompts.from_file(),
+        verbose=verbose,
+    )
 
     assert crew.verbose is verbose
     assert all(agent.verbose is verbose for agent in crew.agents)
@@ -135,22 +141,54 @@ def test_run_is_wrapped_in_a_trace(monkeypatch: pytest.MonkeyPatch) -> None:
 
     from langfuse_agent_demo.crew import crew as crew_module
 
-    recorded: dict[str, str] = {}
+    recorded: dict[str, object] = {}
+    prompts = CrewPrompts(texts={}, versions={"x": 2})
 
     @contextmanager
-    def fake_trace(message: str) -> Iterator[Callable[[str], None]]:
+    def fake_trace(
+        message: str, prompt_versions: Mapping[str, int]
+    ) -> Iterator[Callable[[str], None]]:
         recorded["message"] = message
+        recorded["prompt_versions"] = prompt_versions
         yield lambda answer: recorded.__setitem__("answer", answer)
 
     class FakeCrew:
         def kickoff(self, inputs: dict[str, str]) -> CrewOutput:
             return CrewOutput(raw=f"answer to {inputs['message']}")
 
+    monkeypatch.setattr(crew_module, "langfuse_client", lambda: "client")
+    monkeypatch.setattr(
+        crew_module, "fetch_prompts", lambda client: prompts if client == "client" else None
+    )
     monkeypatch.setattr(crew_module, "make_llm", lambda: None)
-    monkeypatch.setattr(crew_module, "build_crew", lambda llm, verbose=False: FakeCrew())
+    monkeypatch.setattr(
+        crew_module,
+        "build_crew",
+        lambda llm, crew_prompts, verbose=False: FakeCrew() if crew_prompts is prompts else None,
+    )
     monkeypatch.setattr(crew_module, "trace_order_request", fake_trace)
 
     answer = crew_module.run_order_assistant("Refund order 14288")
 
     assert answer == "answer to Refund order 14288"
-    assert recorded == {"message": "Refund order 14288", "answer": answer}
+    assert recorded == {
+        "message": "Refund order 14288",
+        "prompt_versions": {"x": 2},
+        "answer": answer,
+    }
+
+
+def test_run_fails_when_prompts_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    from langfuse_agent_demo.crew import crew as crew_module
+
+    def no_client() -> None:
+        raise PromptsUnavailableError("LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY must be set")
+
+    def unexpected_llm() -> None:
+        raise AssertionError("make_llm must not run without prompts")
+
+    monkeypatch.setattr(crew_module, "langfuse_client", no_client)
+    monkeypatch.setattr(crew_module, "make_llm", unexpected_llm)
+
+    with pytest.raises(PromptsUnavailableError):
+        crew_module.run_order_assistant("Refund order 14288")

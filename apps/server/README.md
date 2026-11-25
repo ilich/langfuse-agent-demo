@@ -18,7 +18,8 @@ themselves by customer ID, contact name, or contact name plus company name.
 
 ```bash
 make install
-cp .env.example .env   # then set OPENAI_API_KEY
+cp .env.example .env   # then set the Langfuse keys, and the gateway or OPENAI_API_KEY
+make prompts-push      # create the crew's prompts in your Langfuse project
 ```
 
 Settings (in `.env`):
@@ -29,8 +30,8 @@ Settings (in `.env`):
 | `CURRENT_DATE` | The crew's "today" (ISO date). Defaults to the real date; `.env.example` uses `2023-11-20`, close to the newest orders. |
 | `REFUND_POLICY_PATH` | Refund policy the refund agent reads (default `docs/refund-policy.md`). |
 | `LLM_MODEL` | CrewAI model name (default `openai/gpt-4o-mini`), also used through the gateway. |
-| `OPENAI_API_KEY` | OpenAI API key; needed to run the crew, not to start the app. |
-| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Langfuse project keys; tracing is on only when both are set. |
+| `OPENAI_API_KEY` | OpenAI API key; needed to run the crew without the gateway, not to start the app. |
+| `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Langfuse project keys; required to run the crew, whose prompts come from Langfuse (see [Prompts](#prompts)). They also turn on tracing. |
 | `LANGFUSE_BASE_URL` | Langfuse server (default `https://cloud.langfuse.com`, EU region). |
 | `LANGFUSE_GATEWAY_HOST`, `LANGFUSE_GATEWAY_KEY` | Langfuse AI Gateway; when both are set, all model calls go through it and `OPENAI_API_KEY` is not used. |
 | `CREW_VERBOSE` | `true` prints each agent step, delegation and tool call to the console (default `false`; `.env.example` sets `true`). |
@@ -100,6 +101,26 @@ crew, agent and tool spans. To list the model IDs your key can use:
 ```bash
 curl -s "$LANGFUSE_GATEWAY_HOST/openai/v1/models" -H "Authorization: Bearer $LANGFUSE_GATEWAY_KEY"
 ```
+
+## Prompts
+
+The crew's prompts (the task, the expected answer, and each agent's role, goal and backstory)
+live in [Langfuse prompt management](https://langfuse.com/docs/prompt-management), named
+`order-assistant/...` and labelled `production`. Each request gets them through the Langfuse
+client's cache; once a cached prompt is older than 60 seconds, the next request still uses it and
+triggers a refresh in the background, so an edit in Langfuse reaches the crew on a later request
+without a restart. The `order-assistant` trace's metadata lists the version of each prompt used.
+There is no fallback file: if the Langfuse keys are missing, or a prompt was never fetched and
+can't be fetched now, the assistant answers `503`. Prompts already cached keep being served
+while Langfuse is down.
+
+The prompts ship with the project in
+[`src/langfuse_agent_demo/crew/prompts.toml`](src/langfuse_agent_demo/crew/prompts.toml).
+`make prompts-push` creates the missing ones in your Langfuse project and leaves existing ones
+alone, so your edits survive; `make prompts-push ARGS=--force` gives every prompt whose text
+differs from the file a new `production` version with the file text. The task prompt must use
+exactly the variables `{{message}}` and `{{today}}`, and the other prompts none; a prompt that
+breaks this or contains single braces is rejected when fetched.
 
 ## Refund policy
 

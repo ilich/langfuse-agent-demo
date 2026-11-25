@@ -7,7 +7,7 @@ LANGFUSE_SECRET_KEY are set; otherwise every function here is a no-op.
 """
 
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager
 
 import httpx
@@ -66,15 +66,23 @@ def shutdown_tracing() -> None:
 
 
 @contextmanager
-def trace_order_request(message: str) -> Iterator[Callable[[str], None]]:
-    """Wrap one crew run in a Langfuse span; yields a function that records the answer."""
+def trace_order_request(
+    message: str, prompt_versions: Mapping[str, int]
+) -> Iterator[Callable[[str], None]]:
+    """Wrap one crew run in a Langfuse span; yields a function that records the answer.
+
+    The span's metadata lists the Langfuse version of each prompt the crew ran with.
+    """
     if not _enabled:
         yield lambda answer: None
         return
 
     with (
         get_client().start_as_current_observation(
-            as_type="span", name="order-assistant", input={"message": message}
+            as_type="span",
+            name="order-assistant",
+            input={"message": message},
+            metadata={"prompts": dict(prompt_versions)},
         ) as span,
         propagate_attributes(tags=["order-assistant"]),
     ):

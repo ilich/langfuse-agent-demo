@@ -47,7 +47,7 @@ def test_disabled_without_keys() -> None:
 def test_request_span_is_a_noop_when_disabled() -> None:
     observability.setup_tracing()
 
-    with observability.trace_order_request("hello") as record_answer:
+    with observability.trace_order_request("hello", {}) as record_answer:
         record_answer("hi")  # must not fail
 
 
@@ -67,13 +67,16 @@ def test_request_span_records_message_and_answer() -> None:
     exporter = InMemorySpanExporter()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
 
-    with observability.trace_order_request("Refund order 14288") as record_answer:
+    with observability.trace_order_request(
+        "Refund order 14288", {"order-assistant/resolve-request": 4}
+    ) as record_answer:
         record_answer("Eligible")
 
     span = next(s for s in exporter.get_finished_spans() if s.name == "order-assistant")
     attributes = dict(span.attributes or {})
     assert "Refund order 14288" in str(attributes.get("langfuse.observation.input"))
     assert "Eligible" in str(attributes.get("langfuse.observation.output"))
+    assert "order-assistant/resolve-request" in str(attributes)
 
 
 def test_interceptor_adds_traceparent_of_current_span() -> None:
