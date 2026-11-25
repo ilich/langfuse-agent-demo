@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     refund_policy_path: Path = Path("docs/refund-policy.md")
     # The crew's "today"; the real date when unset.
     current_date: date | None = None
-    # CrewAI model name for all agents.
+    # CrewAI model name for all agents, also used through the Langfuse AI Gateway.
     llm_model: str = "openai/gpt-4o-mini"
     # Needed only to run the crew, not at startup.
     openai_api_key: SecretStr | None = None
@@ -37,8 +37,6 @@ class Settings(BaseSettings):
     # Langfuse AI Gateway; when host and key are set, all model calls go through it.
     langfuse_gateway_host: str | None = None
     langfuse_gateway_key: SecretStr | None = None
-    # Gateway model ID: "<connection>:<model>" as listed by GET <host>/openai/v1/models.
-    langfuse_gateway_model: str = "google-ai-studio:gemini-2.5-flash"
 
 
 @lru_cache

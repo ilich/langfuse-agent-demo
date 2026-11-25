@@ -6,7 +6,12 @@ from crewai import LLM, Process
 from crewai.llms.providers.openai.completion import OpenAICompletion
 
 from langfuse_agent_demo.config import get_settings
-from langfuse_agent_demo.crew.crew import AssistantUnavailableError, build_crew, make_llm
+from langfuse_agent_demo.crew.crew import (
+    AssistantUnavailableError,
+    build_crew,
+    gateway_model_id,
+    make_llm,
+)
 from langfuse_agent_demo.observability import TraceContextInterceptor
 
 
@@ -36,7 +41,6 @@ def no_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None
         "LLM_MODEL",
         "LANGFUSE_GATEWAY_HOST",
         "LANGFUSE_GATEWAY_KEY",
-        "LANGFUSE_GATEWAY_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
@@ -56,20 +60,32 @@ def test_make_llm_uses_gateway_when_configured(monkeypatch: pytest.MonkeyPatch) 
     llm = make_llm()  # no OPENAI_API_KEY needed: the gateway holds the provider key
 
     assert isinstance(llm, OpenAICompletion)
-    assert llm.model == "google-ai-studio:gemini-2.5-flash"
+    assert llm.model == "openai:gpt-4o-mini"
     assert llm.base_url == GATEWAY_HOST + "/openai/v1"
     assert llm.api_key == "gw-key"
     assert isinstance(llm.interceptor, TraceContextInterceptor)
 
 
 @pytest.mark.usefixtures("no_api_key")
-def test_gateway_model_setting(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gateway_uses_llm_model(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LANGFUSE_GATEWAY_HOST", GATEWAY_HOST)
     monkeypatch.setenv("LANGFUSE_GATEWAY_KEY", "gw-key")
-    monkeypatch.setenv("LANGFUSE_GATEWAY_MODEL", "google-ai-studio:gemini-2.5-pro")
+    monkeypatch.setenv("LLM_MODEL", "openai/gpt-4.1-mini")
     get_settings.cache_clear()
 
-    assert make_llm().model == "google-ai-studio:gemini-2.5-pro"
+    assert make_llm().model == "openai:gpt-4.1-mini"
+
+
+@pytest.mark.parametrize(
+    ("llm_model", "gateway_id"),
+    [
+        ("openai/gpt-4o-mini", "openai:gpt-4o-mini"),
+        ("gpt-4o-mini", "openai:gpt-4o-mini"),
+        ("anthropic/claude-sonnet-5-5", "anthropic:claude-sonnet-5-5"),
+    ],
+)
+def test_gateway_model_id(llm_model: str, gateway_id: str) -> None:
+    assert gateway_model_id(llm_model) == gateway_id
 
 
 @pytest.mark.usefixtures("no_api_key")

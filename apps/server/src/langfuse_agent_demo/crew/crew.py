@@ -42,13 +42,24 @@ class AssistantUnavailableError(RuntimeError):
     """The crew cannot run, e.g. the model API key is not configured."""
 
 
+def gateway_model_id(llm_model: str) -> str:
+    """Gateway model ID ``<connection>:<model>`` for a CrewAI ``<provider>/<model>`` name.
+
+    Assumes the gateway connection is named after the provider, e.g. ``openai/gpt-4o-mini``
+    becomes ``openai:gpt-4o-mini``. A name without a provider is an OpenAI model, as in CrewAI.
+    """
+    provider, _, model = llm_model.rpartition("/")
+    return f"{provider or 'openai'}:{model}"
+
+
 def make_llm() -> LLM:
     settings = get_settings()
     if settings.langfuse_gateway_host and settings.langfuse_gateway_key:
         # Langfuse AI Gateway: OpenAI-compatible endpoint that holds the provider key and
         # records every call; traceparent nests those calls under the CrewAI spans.
         return LLM(
-            model=f"openai/{settings.langfuse_gateway_model}",
+            # "openai/" selects CrewAI's OpenAI provider, which speaks the gateway's API.
+            model=f"openai/{gateway_model_id(settings.llm_model)}",
             base_url=f"{settings.langfuse_gateway_host.rstrip('/')}/openai/v1",
             api_key=settings.langfuse_gateway_key.get_secret_value(),
             interceptor=TraceContextInterceptor(),

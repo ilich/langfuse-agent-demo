@@ -28,12 +28,11 @@ Settings (in `.env`):
 | `NORTHWIND_DB_PATH` | Path to the Northwind SQLite database (required). |
 | `CURRENT_DATE` | The crew's "today" (ISO date). Defaults to the real date; `.env.example` uses `2023-11-20`, close to the newest orders. |
 | `REFUND_POLICY_PATH` | Refund policy the refund agent reads (default `docs/refund-policy.md`). |
-| `LLM_MODEL` | CrewAI model name (default `openai/gpt-4o-mini`). |
+| `LLM_MODEL` | CrewAI model name (default `openai/gpt-4o-mini`), also used through the gateway. |
 | `OPENAI_API_KEY` | OpenAI API key; needed to run the crew, not to start the app. |
 | `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` | Langfuse project keys; tracing is on only when both are set. |
 | `LANGFUSE_BASE_URL` | Langfuse server (default `https://cloud.langfuse.com`, EU region). |
-| `LANGFUSE_GATEWAY_HOST`, `LANGFUSE_GATEWAY_KEY` | Langfuse AI Gateway; when both are set, all model calls go through it and `OPENAI_API_KEY` / `LLM_MODEL` are not used. |
-| `LANGFUSE_GATEWAY_MODEL` | Gateway model ID `<connection>:<model>` (default `google-ai-studio:gemini-2.5-flash`). |
+| `LANGFUSE_GATEWAY_HOST`, `LANGFUSE_GATEWAY_KEY` | Langfuse AI Gateway; when both are set, all model calls go through it and `OPENAI_API_KEY` is not used. |
 | `CREW_VERBOSE` | `true` prints each agent step, delegation and tool call to the console (default `false`; `.env.example` sets `true`). |
 
 ## Run
@@ -91,7 +90,9 @@ With `LANGFUSE_GATEWAY_HOST` and `LANGFUSE_GATEWAY_KEY` set, the crew sends ever
 through the [Langfuse AI Gateway](https://langfuse.com/integrations/model-providers/openai-gateway)
 instead of calling OpenAI directly. CrewAI uses its OpenAI provider with base URL
 `$LANGFUSE_GATEWAY_HOST/openai/v1` and the gateway key; the provider's API key lives in the gateway's
-connection. The gateway records each call (model, tokens, cost, and prompts if its ingestion mode
+connection. The model is `LLM_MODEL` turned into the gateway's `<connection>:<model>` ID
+(`openai/gpt-4o-mini` becomes `openai:gpt-4o-mini`), so the gateway connection must be named after
+the provider. The gateway records each call (model, tokens, cost, and prompts if its ingestion mode
 is `FULL`). Each request carries the current span's `traceparent` header, so when Langfuse
 tracing is also on, these model calls appear inside the same `order-assistant` trace as the
 crew, agent and tool spans. To list the model IDs your key can use:
