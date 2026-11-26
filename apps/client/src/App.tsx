@@ -16,7 +16,7 @@ import { checkHealth } from './api'
 // Test prompts from apps/server/README.md (with CURRENT_DATE=2023-11-20).
 const SUGGESTIONS = [
   'I am Carine Schmitt from France Restauration. I want to refund order 14288. It arrived too late',
-  'I am Karin Josephs from Toms Spezialitäten. Can I get a refund for order 12544?',
+  'I am Karin Josephs from Toms Spezialitäten. Can I get a refund for order 12544?. The order was damaged and I want to return it.',
   'Roland Mendel, Ernst Handel: refund order 11008',
   "I'm Maria Anders, show me order 13789",
 ]
